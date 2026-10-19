@@ -1,0 +1,137 @@
+name: Build JJcode APK
+# Salve em: .github/workflows/build-jjcode.yml  → aba Actions → Run workflow
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+
+      - name: Criar interface web do JJcode
+        run: |
+          mkdir -p www
+          cat > www/index.html <<'EOF'
+          <!doctype html>
+          <html lang="pt-br" data-t="light"><head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+          <title>JJcode</title>
+          <style>
+          :root{--bg:#FAF9F5;--fg:#1F1E1D;--mut:#73726C;--card:#F0EEE6;--bd:#E3E0D5;--ac:#D97757;--code:#EFECE2}
+          [data-t=dark]{--bg:#262624;--fg:#ECEAE3;--mut:#A3A29B;--card:#30302E;--bd:#403F3C;--code:#1E1E1C}
+          *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+          html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+          header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;background:var(--bg);border-bottom:1px solid var(--bd)}
+          header h1{flex:1;margin:0;font:500 22px Georgia,'Times New Roman',serif}
+          header h1 b{color:var(--ac)}
+          .ib{background:none;border:0;color:var(--fg);font-size:20px;padding:6px 8px;border-radius:8px}
+          .ib:active{background:var(--card)}
+          #chat{padding:18px 16px 150px;max-width:760px;margin:auto;overflow-wrap:anywhere}
+          .u{background:var(--card);border-radius:16px;padding:10px 14px;margin:18px 0 18px 14%;white-space:pre-wrap}
+          .a{margin:14px 0;white-space:pre-wrap;font-family:Georgia,serif;font-size:17px}
+          .hello{text-align:center;margin-top:18vh;font:400 32px Georgia,serif}
+          .hello span{color:var(--ac)} .hello p{font:15px system-ui;color:var(--mut)}
+          pre{background:var(--code);border:1px solid var(--bd);border-radius:10px;padding:10px;overflow-x:auto;font:13px/1.45 ui-monospace,Menlo,monospace;margin:8px 0;white-space:pre}
+          code{background:var(--code);padding:1px 5px;border-radius:5px;font:14px ui-monospace,Menlo,monospace}
+          pre code{background:none;padding:0}
+          details{margin:8px 0;border:1px solid var(--bd);border-radius:10px;padding:6px 10px;font:14px system-ui;color:var(--mut)}
+          summary{cursor:pointer} details pre{max-height:240px;overflow:auto}
+          #bar{position:fixed;left:0;right:0;bottom:0;padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);background:linear-gradient(transparent,var(--bg) 25%)}
+          #box{max-width:760px;margin:auto;display:flex;align-items:flex-end;gap:8px;background:var(--card);border:1px solid var(--bd);border-radius:22px;padding:8px 8px 8px 16px;box-shadow:0 2px 10px #0001}
+          textarea{flex:1;border:0;outline:0;resize:none;background:none;color:var(--fg);font:16px system-ui;max-height:140px;padding:6px 0}
+          #go{width:36px;height:36px;border:0;border-radius:50%;background:var(--ac);color:#fff;font-size:18px}
+          #go:disabled{opacity:.4}
+          dialog{border:1px solid var(--bd);border-radius:16px;background:var(--bg);color:var(--fg);width:min(92vw,420px)}
+          dialog input{width:100%;padding:10px;margin:6px 0 12px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--fg);font:15px system-ui}
+          dialog button{padding:9px 16px;border:0;border-radius:10px;background:var(--ac);color:#fff;font:15px system-ui}
+          </style></head><body>
+          <header>
+            <button class="ib" id="nw" title="Nova conversa">✚</button>
+            <h1><b>✻</b> JJcode</h1>
+            <button class="ib" id="th" title="Tema">🌓</button>
+            <button class="ib" id="st" title="Configurações">⚙️</button>
+          </header>
+          <div id="chat"><div class="hello" id="hi"><span>✻</span><br>Olá, o que vamos programar?<p>Claude Code rodando no seu Colab</p></div></div>
+          <div id="bar"><div id="box">
+            <textarea id="in" rows="1" placeholder="Peça algo ao JJcode…"></textarea>
+            <button id="go">↑</button>
+          </div></div>
+          <dialog id="dlg">
+            <label>URL do Colab</label><input id="u" placeholder="https://xxxx.trycloudflare.com">
+            <label>Token</label><input id="k" placeholder="token mostrado na célula 3">
+            <button id="sv">Salvar</button>
+          </dialog>
+          <script>
+          const $=s=>document.querySelector(s);
+          const S=JSON.parse(localStorage.jj||'{}');
+          const save=()=>localStorage.jj=JSON.stringify(S);
+          const root=document.documentElement;
+          root.dataset.t=S.t||'light';
+          $('#th').onclick=()=>{S.t=root.dataset.t=root.dataset.t=='dark'?'light':'dark';save()};
+          $('#st').onclick=()=>{$('#u').value=S.url||'';$('#k').value=S.tok||'';$('#dlg').showModal()};
+          $('#sv').onclick=()=>{S.url=$('#u').value.trim().replace(/\/$/,'');S.tok=$('#k').value.trim();save();$('#dlg').close()};
+          let cont=false,busy=false;
+          $('#nw').onclick=()=>{if(busy)return;cont=false;$('#chat').innerHTML='<div class="hello" id="hi"><span>✻</span><br>Nova conversa</div>'};
+          const ta=$('#in');
+          ta.oninput=()=>{ta.style.height='auto';ta.style.height=ta.scrollHeight+'px'};
+          const esc=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+          const md=t=>esc(t).replace(/```\w*\n?([\s\S]*?)```/g,'<pre><code>$1</code></pre>').replace(/`([^`\n]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+          function add(cls,html){const d=document.createElement('div');d.className=cls;d.innerHTML=html;$('#chat').appendChild(d);scrollTo({top:document.body.scrollHeight});return d}
+          async function send(){
+            const p=ta.value.trim(); if(!p||busy)return;
+            if(!S.url||!S.tok){$('#st').click();return}
+            $('#hi')&&$('#hi').remove(); add('u',esc(p)); ta.value='';ta.oninput();
+            busy=true;$('#go').disabled=true;
+            const wait=add('a','…');let first=true;
+            try{
+              const r=await fetch(S.url+'/chat',{method:'POST',headers:{'Content-Type':'application/json','X-Token':S.tok},body:JSON.stringify({prompt:p,cont})});
+              if(!r.ok)throw new Error('Erro '+r.status+' (confira URL/token)');
+              cont=true;
+              const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+              while(true){
+                const {value,done}=await rd.read(); if(done)break;
+                buf+=dec.decode(value,{stream:true});
+                const parts=buf.split('\n\n');buf=parts.pop();
+                for(const part of parts){
+                  if(!part.startsWith('data: '))continue;
+                  const e=JSON.parse(part.slice(6));
+                  if(first&&e.type!='done'){wait.remove();first=false}
+                  if(e.type=='text')add('a',md(e.text));
+                  else if(e.type=='tool')add('','<details><summary>🔧 '+esc(e.name)+'</summary><pre>'+esc(e.input)+'</pre></details>');
+                  else if(e.type=='result')add('','<details><summary>↳ resultado</summary><pre>'+esc(e.text)+'</pre></details>');
+                }
+              }
+            }catch(err){wait.innerHTML='⚠️ '+esc(err.message)}
+            busy=false;$('#go').disabled=false;
+          }
+          $('#go').onclick=send;
+          </script></body></html>
+          EOF
+
+      - name: Criar projeto Android (Capacitor)
+        run: |
+          npm init -y
+          npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          npx cap init JJcode com.jjcode.app --web-dir www
+          npx cap add android
+          npx cap sync android
+
+      - name: Compilar APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JJcode-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          
